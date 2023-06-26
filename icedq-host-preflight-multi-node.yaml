@@ -1,0 +1,740 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: HostPreflight
+metadata:
+  name: ng-icedq-preflight-checks
+spec:
+  hostCollectors:
+  collectors:
+    - time: {}
+    - cpu: {}
+    - memory: {}
+    - hostServices: {}
+    - hostOS:
+        collectorName: "Supported OS"
+    - diskUsage:
+        collectorName: "Required Disk for /"
+        path: /
+    - diskUsage:
+        collectorName: "Required Disk for /tmp"
+        path: /tmp  
+    - diskUsage:
+        collectorName: "Required Disk for /var/lib"
+        path: /var/lib
+    - diskUsage: 
+        collectorName: "Required Disk for /var/openebs"
+        path: /var/openebs
+    - diskUsage:
+        collectorName: "Ephemeral Disk Usage /var/lib/kubelet"
+        path: /var/lib/kubelet
+    - diskUsage:
+        collectorName: "Ephemeral Disk Usage /var/lib/containerd"
+        path: /var/lib/containerd
+        exclude: '{{kurl not .Installer.Spec.Containerd.Version}}'
+    - tcpPortStatus:
+        collectorName: "Kubernetes API TCP Port Status"
+        port: 6443
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+    - tcpPortStatus:
+        collectorName: "ETCD Client API TCP Port Status"
+        port: 2379
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+    - tcpPortStatus:
+        collectorName: "ETCD Server API TCP Port Status"
+        port: 2380
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+    - tcpPortStatus:
+        collectorName: "ETCD Health Server TCP Port Status"
+        port: 2381
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Kubernetes CNI TCP Port Status"
+        port: 6781
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Kubernetes CNI TCP Port Status"
+        port: 6782
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Kubelet Health Server TCP Port Status"
+        port: 10248
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Kubernetes kube-proxy metrics server TCP Port Status"
+        port: 10249
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Kubelet API TCP Port Status"
+        port: 10250
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+    - tcpPortStatus:
+        collectorName: "Kubelet API TCP Port Status"
+        port: 10251
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+    - tcpPortStatus:
+        collectorName: "Kubelet API TCP Port Status"
+        port: 10252
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+    - tcpPortStatus:
+        collectorName: "Kube Controller Manager Health Server TCP Port Status"
+        port: 10257
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Kube Scheduler Health Server TCP Port Status"
+        port: 10259
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Kubernetes CNI TCP Port Status"
+        port: 6783
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Kubernetes CNI TCP Port Status"
+        port: 6784
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "HTTP(s) redirect for iceDQ platform UI port status"
+        port: 80
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Access to iceDQ Platform Installer port status"
+        port: 8800
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Prometheus node-exporter metrics server"
+        port: 9100
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        interface: lo
+    - tcpPortStatus:
+        collectorName: "Kubelet API UDP Port Status"
+        port: 8472
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+        interface: lo
+    - filesystemPerformance:
+        collectorName: Filesystem Latency Two Minute Benchmark
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        timeout: 2m
+        directory: /var/lib/etcd
+        fileSize: 22Mi
+        operationSizeBytes: 2300
+        datasync: true
+        enableBackgroundIOPS: true
+        backgroundIOPSWarmupSeconds: 10
+        backgroundWriteIOPS: 300
+        backgroundWriteIOPSJobs: 6
+        backgroundReadIOPS: 50
+        backgroundReadIOPSJobs: 1
+  analyzers:
+    - cpu:
+        checkName: "Number of CPUs"
+        outcomes:
+          - fail:
+              when: "count < 8"
+              message: At least 8 CPU cores or equivalent per machine are required, and 48 CPU cores are recommended
+          - warn:
+              when: "count < 32"
+              message: At least 48 CPU cores are recommended
+          - pass:
+              message: This server has at least 8 CPU cores
+    - memory:
+        checkName: "Amount of Memory"
+        outcomes:
+          - fail:
+              when: "< 16G"
+              message: At least 16G of memory is required, and 48G of memory is recommended
+          - warn:
+              when: "< 32G"
+              message: At least 32G of memory is recommended
+          - pass:
+              message: The system has at least 16G of memory
+          - pass:
+              message: The disk containing at least 500Gi of total space
+    - hostOS:
+        checkName: "Supported OS"
+        outcomes:
+          - fail:
+              when: "centos >= 9"
+              message: "This version is not supported, Recommended is  8.x"
+          - pass: 
+              when: "centos <= 9"
+              message: "This CentOS is supported"              
+          - pass:
+              when: "centos >= 7.9"
+              message: "This CentOS is supported"
+          - fail:
+              when: "ubuntu = 16.04"
+              message: "Ubuntu 16.04 is not supported"
+          - pass:
+              when: "ubuntu = 18.04"
+              message: "Ubuntu 18.04 is supported"
+          - pass:
+              when: "ubuntu = 20.04"
+              message: "Ubuntu 20.04 is supported"
+          - pass:
+              when: "rhel <= 9"
+              message: "This RHEL OS is supported"
+          - pass:
+              when: "ol <= 9"
+              message: "This Oracle Linux OS id supported"
+          - pass:
+              when: "amzn <= 3"
+              message: "This Amazon Linux OS is supported"
+    - diskUsage:
+        checkName: "Required Disk for /"
+        collectorName: "Required Disk for /"
+        outcomes:
+          - fail:
+              when: "total < 50Gi"
+              message: The disk containing directory / has less than 50Gi of total space
+          - fail:
+              when: "used/total > 80%"
+              message: The disk containing directory / is more than 80% full
+          - warn:
+              when: "used/total > 50%"
+              message: The disk containing directory / is more than 50% full
+          - pass:
+              message: The disk containing directory / has at least 50Gi of total space, has at least 10Gi of disk space available, and is less than 60% full.
+    - diskUsage:
+        checkName: "Required Disk for /tmp"
+        collectorName: "Required Disk for /tmp"
+        outcomes:
+          - fail:
+              when: "total < 50Gi"
+              message: The disk containing directory /tmp has less than 50Gi of total space
+          - fail:
+              when: "used/total > 80%"
+              message: The disk containing directory /tmp is more than 80% full
+          - warn:
+              when: "used/total > 50%"
+              message: The disk containing directory /tmp is more than 50% full
+          - pass:
+              message: The disk containing directory /tmp has at least 50Gi of total space, has at least 10Gi of disk space available, and is less than 60% full.
+    - diskUsage:
+        checkName: "Required Disk for /var/openebs"
+        collectorName: "Required Disk for /var/openebs"
+        exclude: '{{kurl not .Installer.Spec.Docker.Version}}'
+        outcomes:
+          - fail:
+              when: "total < 500Gi"
+              message: The disk containing directory /var/openebs has less than 500Gi of total space
+          - fail:
+              when: "used/total > 80%"
+              message: The disk containing directory /var/openebs is more than 80% full
+          - warn:
+              when: "used/total > 40%"
+              message: The disk containing directory /var/openebs is more than 40% full
+          - warn:
+              when: "available < 400Gi"
+              message: The disk containing directory /var/openebs has less than 400Gi of total space. Recommended at least 500Gi   
+          - pass:
+              message: The disk containing directory /var/openebs has at least 500Gi of total space, has at least 350Gi of disk space available, and is less than 60% full.
+    - diskUsage:
+        checkName: "Required Disk for /var/lib"
+        collectorName: "Required Disk for /var/lib"
+        exclude: '{{kurl not .Installer.Spec.Docker.Version}}'
+        outcomes:
+          - fail:
+              when: "total < 250Gi"
+              message: The disk containing directory /var/lib has less than 250Gi of total space
+          - fail:
+              when: "used/total > 80%"
+              message: The disk containing directory /var/lib is more than 80% full
+          - warn:
+              when: "used/total > 40%"
+              message: The disk containing directory /var/lib is more than 40% full
+          - warn:
+              when: "available < 200Gi"
+              message: The disk containing directory /var/lib has less than 200Gi of total space. Recommended at least 250Gi   
+          - pass:
+              message: The disk containing directory /var/lib has at least 250Gi of total space, has at least 200Gi of disk space available, and is less than 60% full.   
+    - diskUsage:
+        checkName: "Ephemeral Disk Usage /var/lib/kubelet"
+        collectorName: "Ephemeral Disk Usage /var/lib/kubelet"
+        outcomes:
+          - fail:
+              when: "total < 30Gi"
+              message: The disk containing directory /var/lib/kubelet has less than 30Gi of total space
+          - fail:
+              when: "used/total > 80%"
+              message: The disk containing directory /var/lib/kubelet is more than 80% full
+          - warn:
+              when: "used/total > 60%"
+              message: The disk containing directory /var/lib/kubelet is more than 60% full
+          - warn:
+              when: "available < 10Gi"
+              message: The disk containing directory /var/lib/kubelet has less than 10Gi of disk space available
+          - pass:
+              message: The disk containing directory /var/lib/kubelet has at least 30Gi of total space, has at least 10Gi of disk space available, and is less than 60% full.
+    - diskUsage:
+        checkName: "Ephemeral Disk Usage /var/lib/containerd"
+        collectorName: "Ephemeral Disk Usage /var/lib/containerd"
+        exclude: '{{kurl not .Installer.Spec.Containerd.Version}}'
+        outcomes:
+          - fail:
+              when: "total < 30Gi"
+              message: The disk containing directory /var/lib/containerd has less than 30Gi of total space
+          - fail:
+              when: "used/total > 80%"
+              message: The disk containing directory /var/lib/containerd is more than 80% full
+          - warn:
+              when: "used/total > 60%"
+              message: The disk containing directory /var/lib/containerd is more than 60% full
+          - warn:
+              when: "available < 10Gi"
+              message: The disk containing directory /var/lib/containerd has less than 10Gi of disk space available
+          - pass:
+              message: The disk containing directory /var/lib/containerd has at least 30Gi of total space, has at least 10Gi of disk space available, and is less than 60% full.
+    - tcpPortStatus:
+        checkName: "Kubernetes API TCP Port Status"
+        collectorName: "Kubernetes API TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 6443 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 6443.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 6443. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 6443 is open
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "ETCD Client API TCP Port Status"
+        collectorName: "ETCD Client API TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 2379 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 2379.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 2379. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 2379 is open
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "ETCD Server API TCP Port Status"
+        collectorName: "ETCD Server API TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 2380 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 2380.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 2380. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 2380 is open
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "ETCD Health Server TCP Port Status"
+        collectorName: "ETCD Health Server TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 2381 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 2381.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 2381. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 2381 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kubelet Health Server TCP Port Status"
+        collectorName: "Kubelet Health Server TCP Port Status"
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 10248 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 10248.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 10248. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 10248 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kubernetes kube-proxy metrics server TCP Port Status"
+        collectorName: "Kubernetes kube-proxy metrics server TCP Port Status"
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 10249 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 10249.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 10249. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 10249 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kubelet API TCP Port Status"
+        collectorName: "Kubelet API TCP Port Status"
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 10250 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 10250.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 10250. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 10250 is open
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kubelet API TCP Port Status"
+        collectorName: "Kubelet API TCP Port Status"
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 10251 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 10251.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 10251. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 10251 is open
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kubelet API TCP Port Status"
+        collectorName: "Kubelet API TCP Port Status"
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 10252 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 10252.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 10252. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 10252 is open
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kubelet API UDP Port Status"
+        collectorName: "Kubelet API UDP Port Status"
+        exclude: '{{kurl and (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 8472 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 8472.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 8472. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 8472 is open
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kube Controller Manager Health Server TCP Port Status"
+        collectorName: "Kube Controller Manager Health Server TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 10257 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 10257.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 10257. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 10257 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kube Scheduler Health Server TCP Port Status"
+        collectorName: "Kube Scheduler Health Server TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 10259 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 10259.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 10259. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 10259 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kubernetes CNI TCP Port Status"
+        collectorName: "Kubernetes CNI TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 6781 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 6781.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 6781. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 6781 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kubernetes CNI TCP Port Status"
+        collectorName: "Kubernetes CNI TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 6782 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 6782.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 6782. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 6782 is available
+          - warn:
+              message: Unexpected port statuss
+    - tcpPortStatus:
+        checkName: "Kubernetes CNI TCP Port Status"
+        collectorName: "Kubernetes CNI TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 6783 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 6783.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 6783. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 6783 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Kubernetes CNI TCP Port Status"
+        collectorName: "Kubernetes CNI TCP Port Status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 6784 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 6784.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 6784. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 6784 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "HTTP(s) redirect for iceDQ platform UI port status"
+        collectorName: "HTTP(s) redirect for iceDQ platform UI port status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 80 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 80.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 80. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 80 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Access to iceDQ Platform Installer port status"
+        collectorName: "Access to iceDQ Platform Installer port status"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 8800 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 8800.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 8800. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 8800 is available
+          - warn:
+              message: Unexpected port status
+    - tcpPortStatus:
+        checkName: "Prometheus node-exporter metrics server"
+        collectorName: "Prometheus node-exporter metrics server"
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Connection to port 9100 was refused. This is likely to be a routing problem since this preflight configures a test server to listen on this port.
+          - warn:
+              when: "address-in-use"
+              message: Another process was already listening on port 9100.
+          - fail:
+              when: "connection-timeout"
+              message: Timed out connecting to port 9100. Check your firewall.
+          - fail:
+              when: "error"
+              message: Unexpected port status
+          - pass:
+              when: "connected"
+              message: Port 9100 is available
+          - warn:
+              message: Unexpected port status
+    - filesystemPerformance:
+        collectorName: Filesystem Latency Two Minute Benchmark
+        exclude: '{{kurl and .IsPrimary (not .IsUpgrade) | not }}'
+        outcomes:
+          - pass:
+              when: "p99 < 10ms"
+              message: "Write latency is ok (p99 target < 10ms, actual: {{ .P99 }})"
+          - warn:
+              message: "Write latency is high. p99 target < 10ms, actual:{{ .String }}"
+    - time:
+        checkName: "NTP Status"
+        outcomes:
+          - fail:
+              when: "ntp == unsynchronized+inactive"
+              message: "System clock is not synchronized"
+          - warn:
+              when: "ntp == unsynchronized+active"
+              message: System clock not yet synchronized
+          - pass:
+              when: "ntp == synchronized+active"
+              message: "System clock is synchronized"
+          - warn:
+              when: "timezone != UTC"
+              message: "Non UTC timezone can interfere with system function"
+          - pass:
+              when: "timezone == UTC"
+              message: "Timezone is set to UTC"
