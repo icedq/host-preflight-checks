@@ -139,12 +139,9 @@ spec:
         outcomes:
           - fail:
               when: "count < 16"
-              message: At least 16 CPU cores are required, and 48 CPU cores are recommended
-          - warn:
-              when: "count < 32"
-              message: At least 48 CPU cores are recommended
+              message: At least 16 CPU cores are required, and 16 CPU cores are recommended
           - pass:
-              message: This server has at least 32 CPU cores
+              message: This server has at least 16 CPU cores
     - memory:
         checkName: "Amount of Memory"
         outcomes:
